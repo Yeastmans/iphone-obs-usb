@@ -5,9 +5,9 @@ class ViewController: UIViewController {
 
     private let camera = CameraCapture()
     private let server = TCPServer()
-    private var isStreaming = false
+    private var isStreaming      = false
     private var isLandscapeLocked = false
-    private let PORT: UInt16 = 8080
+    private let PORT: UInt16     = 8080
 
     // MARK: - Preview Layer
 
@@ -23,39 +23,39 @@ class ViewController: UIViewController {
     }()
 
     private let qualitySegment: UISegmentedControl = {
-        let control = UISegmentedControl(items: ["720p", "1080p", "4K"])
-        control.selectedSegmentIndex = 1
-        control.translatesAutoresizingMaskIntoConstraints = false
-        return control
+        let c = UISegmentedControl(items: ["720p", "1080p", "4K"])
+        c.selectedSegmentIndex = 1
+        c.translatesAutoresizingMaskIntoConstraints = false
+        return c
     }()
 
     private let startButton: UIButton = {
-        var config = UIButton.Configuration.filled()
-        config.title = "Start Streaming"
-        config.cornerStyle = .large
-        config.baseBackgroundColor = .systemGreen
-        let button = UIButton(configuration: config)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
+        var cfg = UIButton.Configuration.filled()
+        cfg.title = "Start Streaming"
+        cfg.cornerStyle = .large
+        cfg.baseBackgroundColor = .systemGreen
+        let b = UIButton(configuration: cfg)
+        b.translatesAutoresizingMaskIntoConstraints = false
+        return b
     }()
 
     private let settingsStatusLabel: UILabel = {
-        let label = UILabel()
-        label.text = "Tap Start Streaming to begin"
-        label.textAlignment = .center
-        label.font = .systemFont(ofSize: 14, weight: .regular)
-        label.textColor = .secondaryLabel
-        label.translatesAutoresizingMaskIntoConstraints = false
-        return label
+        let l = UILabel()
+        l.text = "Tap Start Streaming to begin"
+        l.textAlignment = .center
+        l.font = .systemFont(ofSize: 14)
+        l.textColor = .secondaryLabel
+        l.translatesAutoresizingMaskIntoConstraints = false
+        return l
     }()
 
     private let portLabel: UILabel = {
-        let label = UILabel()
-        label.textAlignment = .center
-        label.font = .monospacedSystemFont(ofSize: 14, weight: .regular)
-        label.textColor = .label
-        label.translatesAutoresizingMaskIntoConstraints = false
-        return label
+        let l = UILabel()
+        l.textAlignment = .center
+        l.font = .monospacedSystemFont(ofSize: 14, weight: .regular)
+        l.textColor = .label
+        l.translatesAutoresizingMaskIntoConstraints = false
+        return l
     }()
 
     // MARK: - Live Preview Screen
@@ -68,92 +68,89 @@ class ViewController: UIViewController {
         return v
     }()
 
-    // ◀ Settings — top-left overlay button
     private let backToSettingsButton: UIButton = {
-        var config = UIButton.Configuration.filled()
-        config.title = "Settings"
-        config.image = UIImage(systemName: "chevron.left")
-        config.imagePadding = 4
-        config.cornerStyle = .medium
-        config.baseForegroundColor = .white
-        config.baseBackgroundColor = UIColor.black.withAlphaComponent(0.55)
-        let button = UIButton(configuration: config)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
+        var cfg = UIButton.Configuration.filled()
+        cfg.title = "Settings"
+        cfg.image = UIImage(systemName: "chevron.left")
+        cfg.imagePadding = 4
+        cfg.cornerStyle = .medium
+        cfg.baseForegroundColor = .white
+        cfg.baseBackgroundColor = UIColor.black.withAlphaComponent(0.55)
+        let b = UIButton(configuration: cfg)
+        b.translatesAutoresizingMaskIntoConstraints = false
+        return b
     }()
 
-    // Bottom-left: swaps front ↔ back camera ONLY
     private let flipCameraButton: UIButton = {
-        var config = UIButton.Configuration.filled()
-        config.title = "Flip Camera"
-        config.image = UIImage(systemName: "camera.rotate.fill")
-        config.imagePlacement = .top
-        config.imagePadding = 8
-        config.cornerStyle = .large
-        config.baseForegroundColor = .white
-        config.baseBackgroundColor = UIColor.black.withAlphaComponent(0.55)
-        let button = UIButton(configuration: config)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
+        var cfg = UIButton.Configuration.filled()
+        cfg.title = "Flip Camera"
+        cfg.image = UIImage(systemName: "camera.rotate.fill")
+        cfg.imagePlacement = .top
+        cfg.imagePadding = 8
+        cfg.cornerStyle = .large
+        cfg.baseForegroundColor = .white
+        cfg.baseBackgroundColor = UIColor.black.withAlphaComponent(0.55)
+        let b = UIButton(configuration: cfg)
+        b.translatesAutoresizingMaskIntoConstraints = false
+        return b
     }()
 
-    // Bottom-right: locks/unlocks landscape orientation ONLY
     private let landscapeToggleButton: UIButton = {
-        var config = UIButton.Configuration.filled()
-        config.title = "Landscape"
-        config.image = UIImage(systemName: "rotate.right.fill")
-        config.imagePlacement = .top
-        config.imagePadding = 8
-        config.cornerStyle = .large
-        config.baseForegroundColor = .white
-        config.baseBackgroundColor = UIColor.black.withAlphaComponent(0.55)
-        let button = UIButton(configuration: config)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
+        var cfg = UIButton.Configuration.filled()
+        cfg.title = "Landscape"
+        cfg.image = UIImage(systemName: "rotate.right.fill")
+        cfg.imagePlacement = .top
+        cfg.imagePadding = 8
+        cfg.cornerStyle = .large
+        cfg.baseForegroundColor = .white
+        cfg.baseBackgroundColor = UIColor.black.withAlphaComponent(0.55)
+        let b = UIButton(configuration: cfg)
+        b.translatesAutoresizingMaskIntoConstraints = false
+        return b
     }()
 
     private let previewFPSLabel: UILabel = {
-        let label = UILabel()
-        label.text = "  FPS: --  "
-        label.font = .monospacedSystemFont(ofSize: 13, weight: .semibold)
-        label.textColor = .white
-        label.backgroundColor = UIColor.black.withAlphaComponent(0.5)
-        label.textAlignment = .center
-        label.layer.cornerRadius = 6
-        label.layer.masksToBounds = true
-        label.translatesAutoresizingMaskIntoConstraints = false
-        return label
+        let l = UILabel()
+        l.text = "  FPS: --  "
+        l.font = .monospacedSystemFont(ofSize: 13, weight: .semibold)
+        l.textColor = .white
+        l.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        l.textAlignment = .center
+        l.layer.cornerRadius = 6
+        l.layer.masksToBounds = true
+        l.translatesAutoresizingMaskIntoConstraints = false
+        return l
     }()
 
     private let previewClientLabel: UILabel = {
-        let label = UILabel()
-        label.text = "  No clients  "
-        label.font = .monospacedSystemFont(ofSize: 13, weight: .semibold)
-        label.textColor = .white
-        label.backgroundColor = UIColor.black.withAlphaComponent(0.5)
-        label.textAlignment = .center
-        label.layer.cornerRadius = 6
-        label.layer.masksToBounds = true
-        label.translatesAutoresizingMaskIntoConstraints = false
-        return label
+        let l = UILabel()
+        l.text = "  No clients  "
+        l.font = .monospacedSystemFont(ofSize: 13, weight: .semibold)
+        l.textColor = .white
+        l.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        l.textAlignment = .center
+        l.layer.cornerRadius = 6
+        l.layer.masksToBounds = true
+        l.translatesAutoresizingMaskIntoConstraints = false
+        return l
     }()
 
     private let liveBadgeLabel: UILabel = {
-        let label = UILabel()
-        label.text = "  ● LIVE  "
-        label.font = .systemFont(ofSize: 13, weight: .bold)
-        label.textColor = .systemRed
-        label.backgroundColor = UIColor.black.withAlphaComponent(0.5)
-        label.textAlignment = .center
-        label.layer.cornerRadius = 8
-        label.layer.masksToBounds = true
-        label.translatesAutoresizingMaskIntoConstraints = false
-        return label
+        let l = UILabel()
+        l.text = "  ● LIVE  "
+        l.font = .systemFont(ofSize: 13, weight: .bold)
+        l.textColor = .systemRed
+        l.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        l.textAlignment = .center
+        l.layer.cornerRadius = 8
+        l.layer.masksToBounds = true
+        l.translatesAutoresizingMaskIntoConstraints = false
+        return l
     }()
 
-    // MARK: - State
+    // MARK: - FPS tracking
 
-    private var frameCount = 0
+    private var frameCount   = 0
     private var lastFPSUpdate = Date()
 
     // MARK: - Lifecycle
@@ -166,27 +163,21 @@ class ViewController: UIViewController {
         setupActions()
         setupCamera()
         portLabel.text = "iproxy \(PORT) \(PORT)"
-        requestCameraPermission()
+        requestPermissions()
     }
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        // Keep preview layer filling the full screen as bounds change (rotation etc.)
         previewLayer?.frame = previewView.bounds
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-        return AppDelegate.shared.orientationLock
+        AppDelegate.shared.orientationLock
     }
-
     override var shouldAutorotate: Bool { true }
+    override var prefersStatusBarHidden: Bool { isStreaming }
 
-    override var prefersStatusBarHidden: Bool {
-        // Hide status bar when in full-screen streaming preview
-        return isStreaming
-    }
-
-    // MARK: - Settings UI Setup
+    // MARK: - Settings UI
 
     private func setupSettingsUI() {
         view.addSubview(settingsView)
@@ -197,38 +188,33 @@ class ViewController: UIViewController {
             settingsView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
 
-        let titleLabel = UILabel()
-        titleLabel.text = "iPhone OBS Camera"
-        titleLabel.font = .systemFont(ofSize: 26, weight: .bold)
-        titleLabel.textAlignment = .center
-
-        let resolutionHeader = makeSectionLabel("Resolution")
-        let connectionHeader = makeSectionLabel("USB Connection (iproxy)")
+        let title = UILabel()
+        title.text = "iPhone OBS Camera"
+        title.font = .systemFont(ofSize: 26, weight: .bold)
+        title.textAlignment = .center
 
         let stack = UIStackView(arrangedSubviews: [
-            titleLabel,
-            resolutionHeader,
+            title,
+            makeSectionLabel("Resolution"),
             qualitySegment,
-            connectionHeader,
+            makeSectionLabel("USB Connection (iproxy)"),
             portLabel,
             startButton,
             settingsStatusLabel
         ])
-        stack.axis = .vertical
+        stack.axis    = .vertical
         stack.spacing = 16
-        stack.setCustomSpacing(8, after: resolutionHeader)
-        stack.setCustomSpacing(8, after: connectionHeader)
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         settingsView.addSubview(stack)
         NSLayoutConstraint.activate([
             stack.centerYAnchor.constraint(equalTo: settingsView.centerYAnchor),
-            stack.leadingAnchor.constraint(equalTo: settingsView.leadingAnchor, constant: 28),
+            stack.leadingAnchor.constraint(equalTo: settingsView.leadingAnchor,  constant:  28),
             stack.trailingAnchor.constraint(equalTo: settingsView.trailingAnchor, constant: -28)
         ])
     }
 
-    // MARK: - Preview UI Setup
+    // MARK: - Preview UI
 
     private func setupPreviewUI() {
         view.addSubview(previewView)
@@ -239,39 +225,30 @@ class ViewController: UIViewController {
             previewView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
 
-        previewView.addSubview(backToSettingsButton)
-        previewView.addSubview(liveBadgeLabel)
-        previewView.addSubview(previewFPSLabel)
-        previewView.addSubview(previewClientLabel)
-        previewView.addSubview(flipCameraButton)
-        previewView.addSubview(landscapeToggleButton)
+        [backToSettingsButton, liveBadgeLabel, previewFPSLabel,
+         previewClientLabel, flipCameraButton, landscapeToggleButton].forEach {
+            previewView.addSubview($0)
+        }
 
         let safe = previewView.safeAreaLayoutGuide
-
         NSLayoutConstraint.activate([
-            // ◀ Settings — top-left
-            backToSettingsButton.topAnchor.constraint(equalTo: safe.topAnchor, constant: 14),
+            backToSettingsButton.topAnchor.constraint(equalTo: safe.topAnchor,     constant:  14),
             backToSettingsButton.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 14),
 
-            // ● LIVE — top-center
-            liveBadgeLabel.topAnchor.constraint(equalTo: safe.topAnchor, constant: 14),
+            liveBadgeLabel.topAnchor.constraint(equalTo: safe.topAnchor,           constant:  14),
             liveBadgeLabel.centerXAnchor.constraint(equalTo: previewView.centerXAnchor),
 
-            // FPS — top-right
-            previewFPSLabel.topAnchor.constraint(equalTo: safe.topAnchor, constant: 14),
+            previewFPSLabel.topAnchor.constraint(equalTo: safe.topAnchor,          constant:  14),
             previewFPSLabel.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -14),
 
-            // Client count — below FPS
             previewClientLabel.topAnchor.constraint(equalTo: previewFPSLabel.bottomAnchor, constant: 6),
-            previewClientLabel.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -14),
+            previewClientLabel.trailingAnchor.constraint(equalTo: safe.trailingAnchor,     constant: -14),
 
-            // Flip Camera — bottom-left
-            flipCameraButton.bottomAnchor.constraint(equalTo: safe.bottomAnchor, constant: -24),
-            flipCameraButton.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 24),
+            flipCameraButton.bottomAnchor.constraint(equalTo: safe.bottomAnchor,   constant: -24),
+            flipCameraButton.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant:  24),
             flipCameraButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 110),
 
-            // Landscape toggle — bottom-right
-            landscapeToggleButton.bottomAnchor.constraint(equalTo: safe.bottomAnchor, constant: -24),
+            landscapeToggleButton.bottomAnchor.constraint(equalTo: safe.bottomAnchor,    constant: -24),
             landscapeToggleButton.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -24),
             landscapeToggleButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 110)
         ])
@@ -280,32 +257,31 @@ class ViewController: UIViewController {
     private func setupPreviewLayer() {
         let layer = AVCaptureVideoPreviewLayer(session: camera.captureSession)
         layer.videoGravity = .resizeAspectFill
-        // Insert below all overlay controls
         previewView.layer.insertSublayer(layer, at: 0)
         previewLayer = layer
     }
 
-    // MARK: - Actions Setup
+    // MARK: - Actions wiring
 
     private func setupActions() {
-        startButton.addTarget(self, action: #selector(startStreaming), for: .touchUpInside)
+        startButton.addTarget(self,          action: #selector(startStreaming),    for: .touchUpInside)
         backToSettingsButton.addTarget(self, action: #selector(returnToSettings), for: .touchUpInside)
-        flipCameraButton.addTarget(self, action: #selector(flipCamera), for: .touchUpInside)
-        landscapeToggleButton.addTarget(self, action: #selector(toggleLandscape), for: .touchUpInside)
-        qualitySegment.addTarget(self, action: #selector(qualityChanged), for: .valueChanged)
+        flipCameraButton.addTarget(self,     action: #selector(flipCamera),        for: .touchUpInside)
+        landscapeToggleButton.addTarget(self,action: #selector(toggleLandscape),   for: .touchUpInside)
+        qualitySegment.addTarget(self,       action: #selector(qualityChanged),     for: .valueChanged)
     }
 
     private func setupCamera() {
-        camera.onFrame = { [weak self] jpegData in
+        // Video frames → FPS counter + forward to server
+        camera.onVideoPacket = { [weak self] data in
             guard let self = self else { return }
-            self.server.sendFrame(jpegData)
+            self.server.sendPacket(type: .video, data: data)
             self.frameCount += 1
-
-            let now = Date()
+            let now     = Date()
             let elapsed = now.timeIntervalSince(self.lastFPSUpdate)
             if elapsed >= 1.0 {
                 let fps = Double(self.frameCount) / elapsed
-                self.frameCount = 0
+                self.frameCount   = 0
                 self.lastFPSUpdate = now
                 DispatchQueue.main.async {
                     self.previewFPSLabel.text = String(format: "  FPS: %.1f  ", fps)
@@ -313,26 +289,19 @@ class ViewController: UIViewController {
             }
         }
 
-        server.onClientConnected = { [weak self] in
-            DispatchQueue.main.async { self?.updateClientLabel() }
+        // Audio frames → forward to server
+        camera.onAudioPacket = { [weak self] data in
+            self?.server.sendPacket(type: .audio, data: data)
         }
-        server.onClientDisconnected = { [weak self] in
-            DispatchQueue.main.async { self?.updateClientLabel() }
-        }
+
+        server.onClientConnected    = { [weak self] in DispatchQueue.main.async { self?.updateClientLabel() } }
+        server.onClientDisconnected = { [weak self] in DispatchQueue.main.async { self?.updateClientLabel() } }
     }
 
-    // MARK: - Streaming Actions
+    // MARK: - Streaming
 
     @objc private func startStreaming() {
-        let preset: AVCaptureSession.Preset
-        switch qualitySegment.selectedSegmentIndex {
-        case 0: preset = .hd1280x720
-        case 1: preset = .hd1920x1080
-        case 2: preset = .hd4K3840x2160
-        default: preset = .hd1920x1080
-        }
-        camera.resolution = preset
-
+        // Resolution selector kept for future use; at 60fps we use .inputPriority
         do {
             try server.start(port: PORT)
             try camera.start()
@@ -344,129 +313,117 @@ class ViewController: UIViewController {
     }
 
     @objc private func returnToSettings() {
-        // Always reset to portrait when leaving the preview screen
         if isLandscapeLocked {
             setOrientationLock(.portrait)
             isLandscapeLocked = false
-            resetLandscapeButtonAppearance()
+            resetLandscapeButton()
         }
         camera.stop()
         server.stop()
         isStreaming = false
-        // Reset preview stats
-        previewFPSLabel.text = "  FPS: --  "
+        previewFPSLabel.text    = "  FPS: --  "
         previewClientLabel.text = "  No clients  "
-        settingsStatusLabel.text = "Tap Start Streaming to begin"
+        settingsStatusLabel.text  = "Tap Start Streaming to begin"
         settingsStatusLabel.textColor = .secondaryLabel
         hidePreview()
     }
 
-    // MARK: - Flip Camera (camera swap ONLY — no orientation change)
+    // MARK: - Flip Camera (camera only — no orientation change)
 
     @objc private func flipCamera() {
         camera.switchCamera()
     }
 
-    // MARK: - Landscape Toggle (orientation ONLY — no camera swap)
+    // MARK: - Landscape Toggle (orientation only — no camera switch)
 
     @objc private func toggleLandscape() {
         if isLandscapeLocked {
             setOrientationLock(.portrait)
             isLandscapeLocked = false
-            resetLandscapeButtonAppearance()
+            resetLandscapeButton()
         } else {
             setOrientationLock(.landscape)
             isLandscapeLocked = true
-            setLandscapeButtonActiveAppearance()
+            activateLandscapeButton()
         }
     }
 
-    @objc private func qualityChanged() {
-        // Quality change takes effect on the next stream start — no action needed here
-    }
+    @objc private func qualityChanged() { /* takes effect on next stream start */ }
 
-    // MARK: - Orientation Lock
+    // MARK: - Orientation
 
     private func setOrientationLock(_ mask: UIInterfaceOrientationMask) {
         AppDelegate.shared.orientationLock = mask
-
         if #available(iOS 16.0, *) {
-            guard let windowScene = view.window?.windowScene else { return }
-            let prefs = UIWindowScene.GeometryPreferences.iOS(interfaceOrientations: mask)
-            windowScene.requestGeometryUpdate(prefs) { error in
-                print("[Orientation] Update error: \(error.localizedDescription)")
+            guard let scene = view.window?.windowScene else { return }
+            scene.requestGeometryUpdate(.iOS(interfaceOrientations: mask)) { e in
+                print("[Orientation] \(e.localizedDescription)")
             }
             setNeedsUpdateOfSupportedInterfaceOrientations()
         } else {
-            let rawValue: Int = (mask == .landscape)
+            let raw = (mask == .landscape)
                 ? UIInterfaceOrientation.landscapeRight.rawValue
                 : UIInterfaceOrientation.portrait.rawValue
-            UIDevice.current.setValue(rawValue, forKey: "orientation")
+            UIDevice.current.setValue(raw, forKey: "orientation")
             UIViewController.attemptRotationToDeviceOrientation()
         }
     }
 
-    private func setLandscapeButtonActiveAppearance() {
-        var config = landscapeToggleButton.configuration
-        config?.title = "Portrait"
-        config?.image = UIImage(systemName: "rotate.left.fill")
-        config?.baseBackgroundColor = UIColor.systemBlue.withAlphaComponent(0.75)
-        landscapeToggleButton.configuration = config
+    private func activateLandscapeButton() {
+        var cfg = landscapeToggleButton.configuration
+        cfg?.title = "Portrait"
+        cfg?.image = UIImage(systemName: "rotate.left.fill")
+        cfg?.baseBackgroundColor = UIColor.systemBlue.withAlphaComponent(0.75)
+        landscapeToggleButton.configuration = cfg
     }
 
-    private func resetLandscapeButtonAppearance() {
-        var config = landscapeToggleButton.configuration
-        config?.title = "Landscape"
-        config?.image = UIImage(systemName: "rotate.right.fill")
-        config?.baseBackgroundColor = UIColor.black.withAlphaComponent(0.55)
-        landscapeToggleButton.configuration = config
+    private func resetLandscapeButton() {
+        var cfg = landscapeToggleButton.configuration
+        cfg?.title = "Landscape"
+        cfg?.image = UIImage(systemName: "rotate.right.fill")
+        cfg?.baseBackgroundColor = UIColor.black.withAlphaComponent(0.55)
+        landscapeToggleButton.configuration = cfg
     }
 
-    // MARK: - Screen Transitions
+    // MARK: - Screen transitions
 
     private func showPreview() {
         settingsView.isHidden = true
-        previewView.isHidden = false
+        previewView.isHidden  = false
         setNeedsStatusBarAppearanceUpdate()
     }
 
     private func hidePreview() {
-        previewView.isHidden = true
+        previewView.isHidden  = true
         settingsView.isHidden = false
         setNeedsStatusBarAppearanceUpdate()
     }
 
-    // MARK: - UI Helpers
+    // MARK: - Helpers
 
     private func updateClientLabel() {
-        let count = server.clientCount
-        previewClientLabel.text = count == 0 ? "  No clients  " : "  \(count) client(s)  "
-        previewClientLabel.textColor = count > 0 ? .systemGreen : .white
+        let n = server.clientCount
+        previewClientLabel.text  = n == 0 ? "  No clients  " : "  \(n) client(s)  "
+        previewClientLabel.textColor = n > 0 ? .systemGreen : .white
     }
 
     private func makeSectionLabel(_ text: String) -> UILabel {
-        let label = UILabel()
-        label.text = text
-        label.font = .systemFont(ofSize: 12, weight: .semibold)
-        label.textColor = .secondaryLabel
-        label.textAlignment = .center
-        return label
+        let l = UILabel()
+        l.text = text
+        l.font = .systemFont(ofSize: 12, weight: .semibold)
+        l.textColor = .secondaryLabel
+        l.textAlignment = .center
+        return l
     }
 
-    private func requestCameraPermission() {
-        AVCaptureDevice.requestAccess(for: .video) { granted in
-            DispatchQueue.main.async {
-                if !granted {
-                    self.showAlert("Camera Permission Required",
-                                   message: "Please enable camera access in Settings.")
-                }
-            }
-        }
+    private func requestPermissions() {
+        AVCaptureDevice.requestAccess(for: .video) { _ in }
+        AVAudioApplication.requestRecordPermission { _ in }
     }
 
     private func showAlert(_ title: String, message: String) {
-        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
+        let a = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        a.addAction(UIAlertAction(title: "OK", style: .default))
+        present(a, animated: true)
     }
 }

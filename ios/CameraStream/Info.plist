@@ -20,12 +20,14 @@
     <true/>
     <key>NSCameraUsageDescription</key>
     <string>This app streams your camera to OBS on your computer over USB.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app streams your microphone audio to OBS on your computer over USB.</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>This app uses the local network to stream camera footage to OBS over USB.</string>
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
     <key>UILaunchScreen</key>
     <dict/>
-    <key>NSLocalNetworkUsageDescription</key>
-    <string>This app uses the local network to stream camera footage to OBS over USB.</string>
     <key>UIRequiredDeviceCapabilities</key>
     <array>
         <string>armv7</string>
@@ -33,6 +35,8 @@
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
     <key>UIBackgroundModes</key>
     <array>
