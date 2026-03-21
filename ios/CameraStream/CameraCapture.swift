@@ -4,14 +4,23 @@ import CoreImage
 
 class CameraCapture: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
 
-    private let captureSession = AVCaptureSession()
+    // Exposed so ViewController can attach AVCaptureVideoPreviewLayer
+    let captureSession = AVCaptureSession()
+
     private let videoOutput = AVCaptureVideoDataOutput()
     private let processingQueue = DispatchQueue(label: "camera.processing", qos: .userInteractive)
     private let ciContext = CIContext()
 
     var onFrame: ((Data) -> Void)?
+    var onCameraPositionChanged: ((AVCaptureDevice.Position) -> Void)?
+
     var quality: CGFloat = 1.0  // 1.0 = highest quality JPEG (near-lossless)
     var resolution: AVCaptureSession.Preset = .hd1920x1080
+
+    /// Tracks which camera is currently active (back or front).
+    private(set) var currentPosition: AVCaptureDevice.Position = .back
+
+    // MARK: - Start / Stop
 
     func start() throws {
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
@@ -47,10 +56,10 @@ class CameraCapture: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
             captureSession.addOutput(videoOutput)
         }
 
-        // Set orientation
+        // Set stream output orientation to landscape (horizontal video for OBS)
         if let connection = videoOutput.connection(with: .video) {
             if connection.isVideoOrientationSupported {
-                connection.videoOrientation = .portrait
+                connection.videoOrientation = .landscapeRight
             }
             if connection.isVideoMirroringSupported {
                 connection.isVideoMirrored = false
@@ -58,13 +67,25 @@ class CameraCapture: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
         }
 
         captureSession.commitConfiguration()
-        captureSession.startRunning()
+        currentPosition = .back
+
+        processingQueue.async {
+            self.captureSession.startRunning()
+        }
     }
 
     func stop() {
         captureSession.stopRunning()
+        // Clean up inputs/outputs so start() can reconfigure cleanly on next call
+        captureSession.beginConfiguration()
+        captureSession.inputs.forEach { captureSession.removeInput($0) }
+        captureSession.outputs.forEach { captureSession.removeOutput($0) }
+        captureSession.commitConfiguration()
     }
 
+    // MARK: - Camera Switch
+
+    /// Swaps between back and front camera. Does NOT change orientation.
     func switchCamera() {
         captureSession.beginConfiguration()
 
@@ -73,8 +94,8 @@ class CameraCapture: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
             return
         }
 
-        let currentPosition = currentInput.device.position
-        let newPosition: AVCaptureDevice.Position = currentPosition == .back ? .front : .back
+        let currentPos = currentInput.device.position
+        let newPosition: AVCaptureDevice.Position = currentPos == .back ? .front : .back
 
         guard let newDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: newPosition),
               let newInput = try? AVCaptureDeviceInput(device: newDevice) else {
@@ -87,7 +108,16 @@ class CameraCapture: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
             captureSession.addInput(newInput)
         }
 
+        // Mirror front camera output so OBS receives a natural image
+        if let connection = videoOutput.connection(with: .video) {
+            if connection.isVideoMirroringSupported {
+                connection.isVideoMirrored = (newPosition == .front)
+            }
+        }
+
         captureSession.commitConfiguration()
+        currentPosition = newPosition
+        onCameraPositionChanged?(newPosition)
     }
 
     // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate
