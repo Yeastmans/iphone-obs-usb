@@ -53,7 +53,7 @@ class CameraCapture: NSObject {
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(.playAndRecord,
                                      mode: .videoRecording,
-                                     options: [.defaultToSpeaker, .allowBluetooth])
+                                     options: [.defaultToSpeaker, .allowBluetoothHFP])
         try audioSession.setActive(true)
 
         // ── Video device: pick highest resolution format at 60fps ───────
@@ -126,7 +126,14 @@ class CameraCapture: NSObject {
     // MARK: - VideoToolbox setup
 
     private func setupVideoEncoder(width: Int32, height: Int32) throws {
-        let spec = [kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder: true] as CFDictionary
+        // kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder requires iOS 17.4+
+        let spec: CFDictionary?
+        if #available(iOS 17.4, *) {
+            spec = [kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder: true] as CFDictionary
+        } else {
+            spec = nil
+        }
+
         var session: VTCompressionSession?
 
         let st = VTCompressionSessionCreate(
@@ -291,7 +298,7 @@ class CameraCapture: NSObject {
             offset += 4
 
             var nalu = Data(count: naluLen)
-            nalu.withUnsafeMutableBytes {
+            _ = nalu.withUnsafeMutableBytes {
                 CMBlockBufferCopyDataBytes(dataBuffer, atOffset: offset,
                                            dataLength: naluLen, destination: $0.baseAddress!)
             }
@@ -309,11 +316,12 @@ class CameraCapture: NSObject {
         guard let converter    = audioConverter,
               let outputFormat = outputAudioFormat else { return }
 
-        guard let outputBuffer = AVAudioCompressedBuffer(
+        // AVAudioCompressedBuffer init is non-failable in iOS 26 SDK
+        let outputBuffer = AVAudioCompressedBuffer(
             format:            outputFormat,
             packetCapacity:    1,
             maximumPacketSize: converter.maximumOutputPacketSize
-        ) else { return }
+        )
 
         var inputConsumed = false
         var convError: NSError?
