@@ -418,7 +418,11 @@ class ViewController: UIViewController {
 
     private func requestPermissions() {
         AVCaptureDevice.requestAccess(for: .video) { _ in }
-        AVAudioApplication.requestRecordPermission { _ in }
+        if #available(iOS 17.0, *) {
+            AVAudioApplication.requestRecordPermission { _ in }
+        } else {
+            AVAudioSession.sharedInstance().requestRecordPermission { _ in }
+        }
     }
 
     private func showAlert(_ title: String, message: String) {
