@@ -33,6 +33,20 @@ workflows:
             CONFIGURATION_BUILD_DIR=build \
             build
 
+      - name: Patch Info.plist
+        script: |
+          PLIST="ios/build/CameraStream.app/Info.plist"
+          echo "--- Info.plist before patch ---"
+          /usr/libexec/PlistBuddy -c "Print" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'This app streams your camera to OBS on your computer over USB.'" "$PLIST" 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription 'This app streams your camera to OBS on your computer over USB.'" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSLocalNetworkUsageDescription string 'This app uses the local network to stream camera footage to OBS over USB.'" "$PLIST" 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Set :NSLocalNetworkUsageDescription 'This app uses the local network to stream camera footage to OBS over USB.'" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string 'audio'" "$PLIST" 2>/dev/null || true
+          echo "--- Info.plist after patch ---"
+          /usr/libexec/PlistBuddy -c "Print" "$PLIST"
+
       - name: Package as IPA
         script: |
           cd ios
