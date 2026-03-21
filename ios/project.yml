@@ -1,0 +1,24 @@
+name: CameraStream
+options:
+  bundleIdPrefix: com.obsusb
+  deploymentTarget:
+    iOS: "15.0"
+  xcodeVersion: "15"
+
+targets:
+  CameraStream:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: CameraStream
+    info:
+      path: CameraStream/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.obsusb.camerastream
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        ENABLE_BITCODE: NO
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
