@@ -3,7 +3,7 @@ options:
   bundleIdPrefix: com.obsusb
   deploymentTarget:
     iOS: "15.0"
-  xcodeVersion: "15"
+  xcodeVersion: "26"
 
 targets:
   CameraStream:
@@ -22,3 +22,5 @@ targets:
         ENABLE_BITCODE: NO
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: CameraStream/Info.plist
