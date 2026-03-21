@@ -167,9 +167,14 @@ class CameraCapture: NSObject {
         let inputNode   = audioEngine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)
 
-        // Build AAC output format (44 100 Hz, mono, MPEG-4 AAC)
+        // Use the hardware's native sample rate to avoid sample-rate-conversion artifacts.
+        // iPhones typically capture at 48 000 Hz; forcing 44 100 Hz triggers an SRC pass
+        // that degrades quality and can cause frame-count mismatches with the AAC encoder.
+        let sampleRate = inputFormat.sampleRate
+
+        // Build AAC output format at the native sample rate, mono, MPEG-4 AAC
         var aacASBD = AudioStreamBasicDescription(
-            mSampleRate:       44_100,
+            mSampleRate:       sampleRate,
             mFormatID:         kAudioFormatMPEG4AAC,
             mFormatFlags:      0,
             mBytesPerPacket:   0,
@@ -185,11 +190,12 @@ class CameraCapture: NSObject {
         outputAudioFormat = aacFormat
 
         let conv = AVAudioConverter(from: inputFormat, to: aacFormat)
-        conv?.bitRate = 96_000
+        conv?.bitRate = 128_000   // 128 kbps — up from 96 kbps for noticeably better quality
         audioConverter = conv
 
-        // Tap: 1024 frames matches one AAC packet exactly
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { [weak self] pcm, _ in
+        // Use a larger tap buffer so iOS delivers conveniently-sized chunks.
+        // The encoder loop below handles any buffer size correctly.
+        inputNode.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { [weak self] pcm, _ in
             self?.encodeAudio(pcm)
         }
 
@@ -316,45 +322,88 @@ class CameraCapture: NSObject {
         guard let converter    = audioConverter,
               let outputFormat = outputAudioFormat else { return }
 
-        // AVAudioCompressedBuffer init is non-failable in iOS 26 SDK
-        let outputBuffer = AVAudioCompressedBuffer(
-            format:            outputFormat,
-            packetCapacity:    1,
-            maximumPacketSize: converter.maximumOutputPacketSize
-        )
+        let totalFrames = inputBuffer.frameLength
+        let channelCount = Int(inputBuffer.format.channelCount)
 
-        var inputConsumed = false
-        var convError: NSError?
+        // Process all available frames in 1024-frame chunks (one AAC packet each).
+        // The old code only encoded the first 1024 frames and silently dropped the rest,
+        // causing gaps and choppy audio whenever the tap delivered larger buffers.
+        var frameOffset: AVAudioFrameCount = 0
+        while frameOffset + 1024 <= totalFrames {
 
-        converter.convert(to: outputBuffer, error: &convError) { _, outStatus in
-            if inputConsumed {
-                outStatus.pointee = .noDataNow
-                return nil
+            // Carve out a 1024-frame sub-buffer from the tap delivery
+            guard let chunk = AVAudioPCMBuffer(pcmFormat: inputBuffer.format,
+                                               frameCapacity: 1024) else { break }
+            chunk.frameLength = 1024
+
+            if let srcChannels = inputBuffer.floatChannelData,
+               let dstChannels = chunk.floatChannelData {
+                for ch in 0..<channelCount {
+                    memcpy(dstChannels[ch],
+                           srcChannels[ch].advanced(by: Int(frameOffset)),
+                           1024 * MemoryLayout<Float>.size)
+                }
             }
-            outStatus.pointee = .haveData
-            inputConsumed     = true
-            return inputBuffer
+            frameOffset += 1024
+
+            // AVAudioCompressedBuffer init is non-failable in iOS 26 SDK
+            let outputBuffer = AVAudioCompressedBuffer(
+                format:            outputFormat,
+                packetCapacity:    1,
+                maximumPacketSize: converter.maximumOutputPacketSize
+            )
+
+            var provided = false
+            var convError: NSError?
+
+            converter.convert(to: outputBuffer, error: &convError) { _, outStatus in
+                if provided {
+                    outStatus.pointee = .noDataNow
+                    return nil
+                }
+                outStatus.pointee = .haveData
+                provided = true
+                return chunk
+            }
+
+            guard convError == nil, outputBuffer.byteLength > 0 else { continue }
+
+            let aacBytes  = Int(outputBuffer.byteLength)
+            let aacData   = Data(bytes: outputBuffer.data, count: aacBytes)
+            let adtsFrame = makeADTSHeader(aacDataLength: aacBytes,
+                                           sampleRate: outputFormat.sampleRate) + aacData
+            onAudioPacket?(adtsFrame)
         }
-
-        guard convError == nil, outputBuffer.byteLength > 0 else { return }
-
-        let aacBytes  = Int(outputBuffer.byteLength)
-        let aacData   = Data(bytes: outputBuffer.data, count: aacBytes)
-        let adtsFrame = makeADTSHeader(aacDataLength: aacBytes) + aacData
-
-        onAudioPacket?(adtsFrame)
     }
 
     // MARK: - ADTS header (7 bytes, no CRC)
-    // AAC-LC, 44 100 Hz (index 4), mono (channel config 1)
+    // Dynamically encodes the actual sample rate so OBS decodes at the right frequency.
 
-    private func makeADTSHeader(aacDataLength: Int) -> Data {
+    private func makeADTSHeader(aacDataLength: Int, sampleRate: Double) -> Data {
+        // Standard MPEG-4 sample-rate index table
+        let srIndex: UInt8
+        switch Int(sampleRate) {
+        case 96000: srIndex = 0
+        case 88200: srIndex = 1
+        case 64000: srIndex = 2
+        case 48000: srIndex = 3
+        case 44100: srIndex = 4
+        case 32000: srIndex = 5
+        case 24000: srIndex = 6
+        case 22050: srIndex = 7
+        case 16000: srIndex = 8
+        case 12000: srIndex = 9
+        case 11025: srIndex = 10
+        case  8000: srIndex = 11
+        default:    srIndex = 3   // fallback: 48 000 Hz
+        }
+
         let totalLength = aacDataLength + 7
         var h = Data(count: 7)
         h[0] = 0xFF
-        h[1] = 0xF1                                                          // MPEG-4, no CRC
-        h[2] = 0x50                                                          // AAC-LC, 44100, ch-config bit2=0
-        h[3] = UInt8(0x40 | ((totalLength >> 11) & 0x03))                   // ch-config bits1:0=01, frame_len hi
+        h[1] = 0xF1                                                    // MPEG-4, no CRC
+        h[2] = (0x01 << 6) | (srIndex << 2) | 0x00                    // AAC-LC, sample rate, ch-config bit2=0
+        h[3] = UInt8(0x40 | ((totalLength >> 11) & 0x03))             // ch-config bits1:0=01 (mono), frame_len hi
         h[4] = UInt8((totalLength >> 3) & 0xFF)
         h[5] = UInt8(((totalLength & 0x07) << 5) | 0x1F)
         h[6] = 0xFC
