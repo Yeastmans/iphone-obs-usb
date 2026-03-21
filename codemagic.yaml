@@ -28,6 +28,8 @@ workflows:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            GENERATE_INFOPLIST_FILE=NO \
+            INFOPLIST_FILE=CameraStream/Info.plist \
             CONFIGURATION_BUILD_DIR=build \
             build
 
