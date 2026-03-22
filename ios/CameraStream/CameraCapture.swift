@@ -34,6 +34,8 @@ class CameraCapture: NSObject {
     private let audioEngine        = AVAudioEngine()
     private var audioConverter:     AVAudioConverter?
     private var outputAudioFormat:  AVAudioFormat?
+    // Leftover PCM frames from the previous tap callback, carried into the next one
+    private var audioCarryover:     AVAudioPCMBuffer?
 
     // Callbacks — ViewController sets these
     var onVideoPacket:          ((Data) -> Void)?   // H.264 Annex B
@@ -209,6 +211,7 @@ class CameraCapture: NSObject {
         // Stop audio first
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
+        audioCarryover = nil
 
         // Flush and tear down video encoder
         if let vt = vtSession {
@@ -322,21 +325,48 @@ class CameraCapture: NSObject {
         guard let converter    = audioConverter,
               let outputFormat = outputAudioFormat else { return }
 
-        let totalFrames = inputBuffer.frameLength
         let channelCount = Int(inputBuffer.format.channelCount)
 
-        // Process all available frames in 1024-frame chunks (one AAC packet each).
-        // The old code only encoded the first 1024 frames and silently dropped the rest,
-        // causing gaps and choppy audio whenever the tap delivered larger buffers.
+        // Prepend any leftover frames from the previous callback so no PCM data is lost.
+        // iOS delivers tap buffers whose size is a hint, not a guarantee — at 48 kHz it
+        // commonly delivers ~4800 frames, leaving 704 frames unprocessed each cycle if we
+        // only handle exact 1024-frame multiples. Accumulating the remainder and prepending
+        // it to the next buffer eliminates the repeated audio gaps that cause cracking.
+        let combined: AVAudioPCMBuffer
+        if let carry = audioCarryover, carry.frameLength > 0 {
+            let mergedFrames = carry.frameLength + inputBuffer.frameLength
+            guard let merged = AVAudioPCMBuffer(pcmFormat: inputBuffer.format,
+                                                frameCapacity: mergedFrames) else { return }
+            merged.frameLength = mergedFrames
+            if let src = carry.floatChannelData, let dst = merged.floatChannelData {
+                for ch in 0..<channelCount {
+                    memcpy(dst[ch], src[ch],
+                           Int(carry.frameLength) * MemoryLayout<Float>.size)
+                }
+            }
+            if let src = inputBuffer.floatChannelData, let dst = merged.floatChannelData {
+                for ch in 0..<channelCount {
+                    memcpy(dst[ch].advanced(by: Int(carry.frameLength)), src[ch],
+                           Int(inputBuffer.frameLength) * MemoryLayout<Float>.size)
+                }
+            }
+            audioCarryover = nil
+            combined = merged
+        } else {
+            combined = inputBuffer
+        }
+
+        let totalFrames = combined.frameLength
         var frameOffset: AVAudioFrameCount = 0
+
         while frameOffset + 1024 <= totalFrames {
 
-            // Carve out a 1024-frame sub-buffer from the tap delivery
-            guard let chunk = AVAudioPCMBuffer(pcmFormat: inputBuffer.format,
+            // Carve out a 1024-frame sub-buffer (one AAC packet)
+            guard let chunk = AVAudioPCMBuffer(pcmFormat: combined.format,
                                                frameCapacity: 1024) else { break }
             chunk.frameLength = 1024
 
-            if let srcChannels = inputBuffer.floatChannelData,
+            if let srcChannels = combined.floatChannelData,
                let dstChannels = chunk.floatChannelData {
                 for ch in 0..<channelCount {
                     memcpy(dstChannels[ch],
@@ -346,7 +376,6 @@ class CameraCapture: NSObject {
             }
             frameOffset += 1024
 
-            // AVAudioCompressedBuffer init is non-failable in iOS 26 SDK
             let outputBuffer = AVAudioCompressedBuffer(
                 format:            outputFormat,
                 packetCapacity:    1,
@@ -373,6 +402,21 @@ class CameraCapture: NSObject {
             let adtsFrame = makeADTSHeader(aacDataLength: aacBytes,
                                            sampleRate: outputFormat.sampleRate) + aacData
             onAudioPacket?(adtsFrame)
+        }
+
+        // Save any sub-1024-frame remainder for the next callback rather than discarding it
+        let remaining = totalFrames - frameOffset
+        if remaining > 0,
+           let carry = AVAudioPCMBuffer(pcmFormat: combined.format, frameCapacity: remaining) {
+            carry.frameLength = remaining
+            if let src = combined.floatChannelData, let dst = carry.floatChannelData {
+                for ch in 0..<channelCount {
+                    memcpy(dst[ch],
+                           src[ch].advanced(by: Int(frameOffset)),
+                           Int(remaining) * MemoryLayout<Float>.size)
+                }
+            }
+            audioCarryover = carry
         }
     }
 
